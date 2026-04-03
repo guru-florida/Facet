@@ -12,7 +12,7 @@ echo "→ Installing base dependencies..."
   "pydantic==2.9.2" \
   "pydantic-settings==2.6.1" \
   "opencv-python-headless==4.10.0.84" \
-  "mediapipe==0.10.33" \
+  "mediapipe>=0.10.14" \
   "onnxruntime==1.20.1" \
   "numpy==1.26.4" \
   "python-multipart==0.0.12"
