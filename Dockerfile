@@ -27,12 +27,14 @@ FROM python:3.11-slim
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libgl1 \
     libglib2.0-0 \
+    build-essential \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
 COPY backend/requirements.txt .
-# insightface needs --no-build-isolation (yanked numpy build dep)
+# insightface needs --no-build-isolation (yanked numpy build dep) and g++ to
+# compile its face3d Cython extension.  Strip build-essential afterwards.
 RUN pip install --no-cache-dir \
     fastapi==0.115.5 \
     "uvicorn[standard]==0.32.1" \
@@ -44,7 +46,10 @@ RUN pip install --no-cache-dir \
     numpy==1.26.4 \
     python-multipart==0.0.12 \
     "aiofiles==24.1.0" \
- && pip install --no-build-isolation --no-cache-dir insightface==0.7.3
+ && pip install --no-cache-dir Cython \
+ && pip install --no-build-isolation --no-cache-dir insightface==0.7.3 \
+ && apt-get purge -y --auto-remove build-essential \
+ && rm -rf /var/lib/apt/lists/*
 
 COPY backend/app/ app/
 

@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Install backend dependencies, working around insightface's broken build-dep
 # (insightface 0.7.3 declares numpy==2.0.0rc1 as a build requirement, which is yanked)
+# Requires: g++ / Xcode CLT (macOS) for insightface's face3d Cython extension
 set -e
 
 PIP="${1:-.venv/bin/pip}"
@@ -16,6 +17,9 @@ echo "→ Installing base dependencies..."
   "onnxruntime==1.20.1" \
   "numpy==1.26.4" \
   "python-multipart==0.0.12"
+
+echo "→ Installing Cython (required by insightface build)..."
+"$PIP" install "Cython"
 
 echo "→ Installing insightface (--no-build-isolation to bypass broken build dep)..."
 "$PIP" install --no-build-isolation "insightface==0.7.3"
