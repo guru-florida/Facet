@@ -1,0 +1,10 @@
+# macOS development override — removes camera device passthrough
+# (macOS Docker Desktop cannot access host webcam via /dev/videoN)
+# Run backend and frontend natively on the host instead.
+#
+# Usage: docker-compose -f docker-compose.yml -f docker-compose.dev.yml up
+version: '3.9'
+
+services:
+  backend:
+    devices: []   # override: no camera passthrough on macOS
