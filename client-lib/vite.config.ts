@@ -19,22 +19,15 @@ export default defineConfig({
       fileName: 'presence-client',
     },
     rollupOptions: {
-      // Don't bundle peer deps — consumer provides them
-      external: [
-        'react',
-        'react-dom',
-        'react/jsx-runtime',
-        '@mui/material',
-        '@mui/material/styles',
-        '@mui/icons-material',
-        '@mui/icons-material/Add',
-        '@mui/icons-material/Delete',
-        '@mui/icons-material/Face',
-        '@mui/icons-material/Person',
-        '@mui/icons-material/PersonAdd',
-        '@emotion/react',
-        '@emotion/styled',
-      ],
+      // Don't bundle peer deps — consumer provides them.
+      // Use a function so that all sub-path imports (e.g. @mui/material/Box)
+      // are also treated as external, not just the package root.
+      external: (id) =>
+        id === 'react' ||
+        id === 'react-dom' ||
+        id === 'react/jsx-runtime' ||
+        id.startsWith('@mui/') ||
+        id.startsWith('@emotion/'),
       output: {
         globals: {
           react: 'React',

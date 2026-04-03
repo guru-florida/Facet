@@ -1,7 +1,14 @@
 /**
- * EnrollmentSettings — self-contained identity enrollment and management panel.
+ * EnrollmentSettings — identity enrollment and management panel.
  *
- * Includes video preview, enroll dialog, sample management, and identity list.
+ * Layout:
+ *   ┌─────────────────────┬──────────────────────┐
+ *   │  Video feed         │  Enrolled identities  │
+ *   │  (left, half-width) │  + per-row actions    │
+ *   └─────────────────────┴──────────────────────┘
+ *   │  Detected faces (TrackList)                  │
+ *   └──────────────────────────────────────────────┘
+ *
  * Requires <PresenceProvider> in the tree.
  */
 import AddIcon from '@mui/icons-material/Add'
@@ -9,6 +16,7 @@ import DeleteIcon from '@mui/icons-material/Delete'
 import PersonAddIcon from '@mui/icons-material/PersonAdd'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
+import Chip from '@mui/material/Chip'
 import Dialog from '@mui/material/Dialog'
 import DialogActions from '@mui/material/DialogActions'
 import DialogContent from '@mui/material/DialogContent'
@@ -19,21 +27,25 @@ import IconButton from '@mui/material/IconButton'
 import List from '@mui/material/List'
 import ListItem from '@mui/material/ListItem'
 import ListItemText from '@mui/material/ListItemText'
+import Paper from '@mui/material/Paper'
 import TextField from '@mui/material/TextField'
 import Tooltip from '@mui/material/Tooltip'
 import Typography from '@mui/material/Typography'
 import { useCallback, useEffect, useState } from 'react'
 import { usePresenceApi } from '../api'
+import { usePresenceSocket } from '../hooks/usePresenceSocket'
 import type { Identity } from '../types'
+import { TrackList } from './TrackList'
 import { VideoFeed } from './VideoFeed'
 
 export interface EnrollmentSettingsProps {
-  /** Hide the video preview (e.g. when embedding in a layout that shows it elsewhere) */
+  /** Hide the video preview — use when the video is shown elsewhere in your layout */
   hideVideo?: boolean
 }
 
 export function EnrollmentSettings({ hideVideo = false }: EnrollmentSettingsProps) {
   const api = usePresenceApi()
+  const tracks = usePresenceSocket()
   const [identities, setIdentities] = useState<Identity[]>([])
   const [enrollOpen, setEnrollOpen] = useState(false)
   const [feedback, setFeedback] = useState<{ message: string; error?: boolean } | null>(null)
@@ -60,13 +72,15 @@ export function EnrollmentSettings({ hideVideo = false }: EnrollmentSettingsProp
     flash(`Enrolled "${identity.name}"`)
   }
 
-  const handleAddSample = async (id: string) => {
+  const handleAddSample = async (id: string, name: string) => {
     try {
       const updated = await api.addIdentitySample(id)
       setIdentities((prev) => prev.map((i) => (i.id === updated.id ? updated : i)))
-      flash('Sample added')
+      flash(`Photo added to "${name}"`)
     } catch (err: unknown) {
-      flash(err instanceof Error ? err.message : 'Failed to add sample', true)
+      const msg =
+        err instanceof Error ? err.message : 'Failed — ensure face is visible and stable'
+      flash(msg, true)
     }
   }
 
@@ -81,76 +95,110 @@ export function EnrollmentSettings({ hideVideo = false }: EnrollmentSettingsProp
     }
   }
 
+  const visibleTracks = tracks.filter((t) => !t.leftPending)
+
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-      {!hideVideo && <VideoFeed aspectRatio="4/3" />}
 
-      <Box>
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-          <Typography variant="subtitle2" fontWeight={700}>
-            Enrolled Identities
-          </Typography>
-          <Button
-            size="small"
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={() => setEnrollOpen(true)}
-          >
-            Enroll
-          </Button>
-        </Box>
+      {/* ── Top row: video + identity list side-by-side ── */}
+      <Box
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: hideVideo ? '1fr' : '2fr 1fr',
+          gap: 2,
+          alignItems: 'start',
+        }}
+      >
+        {!hideVideo && <VideoFeed aspectRatio="4/3" />}
 
-        {feedback && (
-          <Typography
-            variant="caption"
-            color={feedback.error ? 'error' : 'primary'}
-            display="block"
-            sx={{ mb: 1 }}
-          >
-            {feedback.message}
-          </Typography>
-        )}
+        {/* Identity panel */}
+        <Paper variant="outlined" sx={{ p: 1.5, height: '100%' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+            <Typography variant="subtitle2" fontWeight={700}>
+              Enrolled Identities
+            </Typography>
+            <Button
+              size="small"
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={() => setEnrollOpen(true)}
+            >
+              Enroll
+            </Button>
+          </Box>
 
-        <Divider sx={{ mb: 1 }} />
+          {feedback && (
+            <Typography
+              variant="caption"
+              color={feedback.error ? 'error' : 'primary'}
+              display="block"
+              sx={{ mb: 1 }}
+            >
+              {feedback.message}
+            </Typography>
+          )}
 
-        {identities.length === 0 ? (
-          <Typography color="text.secondary" variant="body2" sx={{ py: 2, textAlign: 'center' }}>
-            No identities enrolled yet
-          </Typography>
-        ) : (
-          <List dense disablePadding>
-            {identities.map((identity) => (
-              <ListItem
-                key={identity.id}
-                disableGutters
-                secondaryAction={
-                  <Box>
-                    <Tooltip title="Add face sample">
-                      <IconButton size="small" onClick={() => handleAddSample(identity.id)}>
-                        <PersonAddIcon fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-                    <Tooltip title="Delete identity">
-                      <IconButton
-                        size="small"
-                        color="error"
-                        onClick={() => handleDelete(identity.id, identity.name)}
-                      >
-                        <DeleteIcon fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-                  </Box>
-                }
-              >
-                <ListItemText
-                  primary={identity.name}
-                  secondary={`${identity.sampleCount} sample${identity.sampleCount !== 1 ? 's' : ''}`}
-                />
-              </ListItem>
-            ))}
-          </List>
-        )}
+          <Divider sx={{ mb: 1 }} />
+
+          {identities.length === 0 ? (
+            <Typography color="text.secondary" variant="body2" sx={{ py: 2, textAlign: 'center' }}>
+              No identities enrolled yet
+            </Typography>
+          ) : (
+            <List dense disablePadding>
+              {identities.map((identity) => (
+                <ListItem
+                  key={identity.id}
+                  disableGutters
+                  sx={{ pr: 9 }}  /* room for the two icon buttons */
+                  secondaryAction={
+                    <Box sx={{ display: 'flex', gap: 0.5 }}>
+                      <Tooltip title="Add current frame as a photo sample">
+                        <IconButton
+                          size="small"
+                          onClick={() => handleAddSample(identity.id, identity.name)}
+                        >
+                          <PersonAddIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Delete identity">
+                        <IconButton
+                          size="small"
+                          color="error"
+                          onClick={() => handleDelete(identity.id, identity.name)}
+                        >
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    </Box>
+                  }
+                >
+                  <ListItemText
+                    primary={identity.name}
+                    secondary={`${identity.sampleCount} photo${identity.sampleCount !== 1 ? 's' : ''}`}
+                  />
+                </ListItem>
+              ))}
+            </List>
+          )}
+        </Paper>
       </Box>
+
+      {/* ── Bottom row: detected faces ── */}
+      <Paper variant="outlined" sx={{ p: 1.5 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+          <Typography variant="subtitle2" fontWeight={700}>
+            Detected Faces
+          </Typography>
+          <Chip
+            label={visibleTracks.length}
+            size="small"
+            color={visibleTracks.length > 0 ? 'primary' : 'default'}
+            sx={{ height: 18, fontSize: 11 }}
+          />
+        </Box>
+        <TrackList tracks={tracks} />
+      </Paper>
 
       <EnrollDialog
         open={enrollOpen}
