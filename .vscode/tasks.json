@@ -1,0 +1,95 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    // ─── Backend ────────────────────────────────────────────────────────────
+    {
+      "label": "facet: install backend deps",
+      "type": "shell",
+      "command": "pip install -r requirements.txt",
+      "options": { "cwd": "${workspaceFolder}/backend" },
+      "group": "build",
+      "presentation": { "reveal": "always", "panel": "shared" }
+    },
+    {
+      "label": "facet: start backend",
+      "type": "shell",
+      "command": "uvicorn app.main:app --reload --port 8001",
+      "options": {
+        "cwd": "${workspaceFolder}/backend",
+        "env": {
+          "PYTHONPATH": "${workspaceFolder}/backend",
+          "CAMERA_INDEX": "0",
+          "DB_PATH": "${workspaceFolder}/backend/data/presence.db",
+          "INSIGHTFACE_HOME": "${workspaceFolder}/backend/data/insightface_models"
+        }
+      },
+      "group": "build",
+      "isBackground": true,
+      "presentation": { "reveal": "always", "panel": "dedicated", "label": "facet backend" },
+      "problemMatcher": {
+        "owner": "python",
+        "pattern": { "regexp": "." },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "Started server process",
+          "endsPattern": "Application startup complete\\."
+        }
+      }
+    },
+
+    // ─── Frontend ───────────────────────────────────────────────────────────
+    {
+      "label": "facet: install frontend deps",
+      "type": "shell",
+      "command": "npm install",
+      "options": { "cwd": "${workspaceFolder}/frontend" },
+      "group": "build",
+      "presentation": { "reveal": "always", "panel": "shared" }
+    },
+    {
+      "label": "facet: start frontend",
+      "type": "shell",
+      "command": "npm run dev",
+      "options": { "cwd": "${workspaceFolder}/frontend" },
+      "group": "build",
+      "isBackground": true,
+      "presentation": { "reveal": "always", "panel": "dedicated", "label": "facet frontend" },
+      "problemMatcher": {
+        "owner": "vite",
+        "pattern": { "regexp": "." },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "VITE",
+          "endsPattern": "Local:.*localhost"
+        }
+      }
+    },
+    {
+      "label": "facet: build frontend",
+      "type": "shell",
+      "command": "npm run build",
+      "options": { "cwd": "${workspaceFolder}/frontend" },
+      "group": { "kind": "build", "isDefault": true },
+      "presentation": { "reveal": "always", "panel": "shared" },
+      "problemMatcher": ["$tsc"]
+    },
+
+    // ─── Compound ───────────────────────────────────────────────────────────
+    {
+      "label": "facet: start full stack",
+      "dependsOn": ["facet: start backend", "facet: start frontend"],
+      "dependsOrder": "parallel",
+      "group": "build",
+      "presentation": { "reveal": "always" },
+      "problemMatcher": []
+    },
+    {
+      "label": "facet: install all deps",
+      "dependsOn": ["facet: install backend deps", "facet: install frontend deps"],
+      "dependsOrder": "parallel",
+      "group": "build",
+      "presentation": { "reveal": "always" },
+      "problemMatcher": []
+    }
+  ]
+}

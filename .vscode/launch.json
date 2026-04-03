@@ -1,0 +1,58 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    // ─── Backend ────────────────────────────────────────────────────────────
+    {
+      "name": "facet: Backend (debug)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "uvicorn",
+      "args": ["app.main:app", "--reload", "--port", "8001"],
+      "cwd": "${workspaceFolder}/backend",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/backend",
+        // Camera index — on macOS the webcam shows up as index 0 natively,
+        // but OpenCV in the container can't access it. Run the backend natively.
+        "CAMERA_INDEX": "0",
+        "DB_PATH": "${workspaceFolder}/backend/data/presence.db",
+        "INSIGHTFACE_HOME": "${workspaceFolder}/backend/data/insightface_models"
+      },
+      "jinja": true,
+      "justMyCode": false,
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "facet: pytest",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "pytest",
+      "args": ["-v"],
+      "cwd": "${workspaceFolder}/backend",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/backend"
+      },
+      "console": "integratedTerminal",
+      "justMyCode": false
+    },
+
+    // ─── Frontend ───────────────────────────────────────────────────────────
+    {
+      // Requires the facet backend to be running (API at localhost:8001).
+      // Use the "facet: Full Stack" compound to start everything together.
+      "name": "facet: Frontend (Chrome)",
+      "type": "chrome",
+      "request": "launch",
+      "url": "http://localhost:5173",
+      "webRoot": "${workspaceFolder}/frontend/src",
+      "preLaunchTask": "facet: start frontend"
+    }
+  ],
+
+  "compounds": [
+    {
+      "name": "facet: Full Stack (debug)",
+      "configurations": ["facet: Backend (debug)", "facet: Frontend (Chrome)"],
+      "stopAll": true
+    }
+  ]
+}

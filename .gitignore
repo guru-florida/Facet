@@ -20,7 +20,7 @@ node_modules/
 frontend/dist/
 
 # IDE
-.vscode/
+#.vscode/
 .idea/
 *.swp
 
