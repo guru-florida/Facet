@@ -30,27 +30,38 @@ class FaceRecognizer:
 
     def load(self) -> None:
         """Load the ArcFace onnx model.  Downloads buffalo_sc via insightface if needed."""
-        try:
-            # Ensure buffalo_sc models exist (insightface downloads them on first use)
-            import insightface
-            os.environ["INSIGHTFACE_HOME"] = settings.insightface_home
-            os.makedirs(settings.insightface_home, exist_ok=True)
+        os.environ["INSIGHTFACE_HOME"] = settings.insightface_home
+        os.makedirs(settings.insightface_home, exist_ok=True)
 
-            app = insightface.app.FaceAnalysis(
-                name="buffalo_sc",
-                root=settings.insightface_home,
-                providers=["CPUExecutionProvider"],
-            )
-            app.prepare(ctx_id=-1, det_size=(640, 640))
-            logger.info("insightface buffalo_sc models downloaded/verified")
-        except Exception as exc:
-            logger.error("insightface initialisation failed: %s", exc)
-            return
-
-        # Load the recognition model directly with onnxruntime
         model_path = os.path.join(settings.insightface_home, self._MODEL_SUBPATH)
+
         if not os.path.exists(model_path):
-            logger.error("ArcFace model not found at %s", model_path)
+            # Model not on disk yet — try to download via insightface.
+            # This can fail on some macOS environments due to ml_dtypes version
+            # conflicts; if so, log clearly and bail.
+            try:
+                import insightface
+                app = insightface.app.FaceAnalysis(
+                    name="buffalo_sc",
+                    root=settings.insightface_home,
+                    providers=["CPUExecutionProvider"],
+                )
+                app.prepare(ctx_id=-1, det_size=(640, 640))
+                logger.info("insightface buffalo_sc models downloaded/verified")
+            except Exception as exc:
+                logger.error(
+                    "insightface download failed and model not found at %s: %s — "
+                    "run: python -c \"import insightface; "
+                    "insightface.app.FaceAnalysis('buffalo_sc').prepare(ctx_id=-1)\"",
+                    model_path,
+                    exc,
+                )
+                return
+        else:
+            logger.info("ArcFace model found at %s — skipping insightface download", model_path)
+
+        if not os.path.exists(model_path):
+            logger.error("ArcFace model still not found at %s after download attempt", model_path)
             return
 
         try:

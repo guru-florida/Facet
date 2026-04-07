@@ -96,33 +96,81 @@ app.add_middleware(
 )
 
 # ── REST routers ──────────────────────────────────────────────────────────────
+# Legacy paths — kept for the standalone facet frontend
 from app.api import presence, identities, status  # noqa: E402
 
 app.include_router(presence.router, prefix="/api")
 app.include_router(identities.router, prefix="/api")
 app.include_router(status.router, prefix="/api")
 
+# MacBoard adapter interface paths
+from app.interfaces import presence_identity, presence_identity_enrollment  # noqa: E402
+
+app.include_router(
+    presence_identity.router,
+    prefix="/api/interfaces/presence.identity",
+)
+app.include_router(
+    presence_identity_enrollment.router,
+    prefix="/api/interfaces/presence.identity.enrollment",
+)
+
+
+# ── Adapter discovery endpoint ────────────────────────────────────────────────
+
+@app.get("/api/adapter")
+def get_adapter_meta() -> dict:
+    """MacBoard calls this during adapter discovery to learn our capabilities."""
+    return {
+        "adapter_key": "facet",
+        "name": "Facet Presence Detection",
+        "description": "Webcam-based face detection and recognition using ArcFace",
+        "version": "0.1.0",
+        "feeds": [],
+        "supported_interfaces": [
+            presence_identity.INTERFACE_META,
+            presence_identity_enrollment.INTERFACE_META,
+        ],
+    }
+
 
 # ── WebSocket endpoints ───────────────────────────────────────────────────────
-@app.websocket("/ws/video")
-async def ws_video(ws: WebSocket) -> None:
-    await video_ws_handler(ws)
 
-
-@app.websocket("/ws/presence")
-async def ws_presence(ws: WebSocket) -> None:
+async def _presence_ws_handler(ws: WebSocket) -> None:
+    """Shared handler for both legacy and interface-path presence WebSockets."""
     track_store: TrackStore = ws.app.state.track_store
     await presence_manager.connect(ws, snapshot=track_store.get_all())
     try:
         while True:
-            # Send a ping every 25 s to keep the Vite dev-proxy (and nginx in
-            # production) from closing the idle connection.
+            # Ping every 25 s to keep proxies from closing idle connections.
             await asyncio.sleep(25)
             await ws.send_text('{"type":"ping"}')
     except Exception:
         pass
     finally:
         presence_manager.disconnect(ws)
+
+
+# Legacy paths — standalone facet frontend
+@app.websocket("/ws/presence")
+async def ws_presence(ws: WebSocket) -> None:
+    await _presence_ws_handler(ws)
+
+
+@app.websocket("/ws/video")
+async def ws_video(ws: WebSocket) -> None:
+    await video_ws_handler(ws)
+
+
+# MacBoard interface paths (proxied through macboard backend)
+@app.websocket("/ws/interfaces/presence.identity/presence")
+async def ws_presence_interface(ws: WebSocket) -> None:
+    await _presence_ws_handler(ws)
+
+
+@app.websocket("/ws/interfaces/presence.identity.enrollment/video")
+async def ws_video_interface(ws: WebSocket) -> None:
+    await video_ws_handler(ws)
 
 
 @app.get("/health")
